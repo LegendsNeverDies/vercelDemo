@@ -18,24 +18,28 @@ export async function POST(request: NextRequest) {
     const pd: ParsedFile = parsedData
     const parseRule: ParseRule = rule
 
-    const currentSheetData = pd.parsedSheets?.[sheetIndex] || {
+    const currentSheetData = pd.parsedSheets?.[sheetIndex] || ({
       headers: pd.headers,
       rows: pd.rows,
-    }
+      name: 'Sheet1',
+      totalRows: pd.rows.length,
+      totalCols: pd.headers.length,
+      allRows: [] as unknown[][],
+    } as ParsedFile['parsedSheets'] extends Array<infer T> ? T : never)
 
     // 构建数据
     const allRows = currentSheetData.rows || pd.rows
     const headers = currentSheetData.headers || pd.headers
 
     // 获取当前 sheet 的 allRows，供 headerRow 操作使用
-    const currentAllRows = currentSheetData.allRows || (pd.parsedSheets?.[sheetIndex] as any)?.allRows
+    const currentAllRows = currentSheetData.allRows
 
     const allParsedSheets = (pd.parsedSheets || []).map((ps, idx) => ({
       rows: ps.rows,
       headers: ps.headers,
       name: ps.name,
       // 确保 allRows 被传递
-      allRows: ps.allRows || (pd.parsedSheets?.[idx] as any)?.allRows,
+      allRows: ps.allRows,
     }))
 
     if (allParsedSheets.length === 0) {
