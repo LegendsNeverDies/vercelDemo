@@ -136,3 +136,51 @@ export async function POST(request: NextRequest) {
     )
   }
 }
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const sql = await getSql()
+    const body = await request.json()
+    const ids: number[] = Array.isArray(body?.ids) ? body.ids : []
+
+    if (ids.length === 0) {
+      return NextResponse.json(
+        { success: false, message: '请提供要删除的运单 ID 列表' },
+        { status: 400 }
+      )
+    }
+
+    // 仅保留数字 ID，防止非法输入
+    const safeIds = ids.filter((n) => Number.isFinite(n) && Number.isInteger(n) && n > 0)
+    if (safeIds.length === 0) {
+      return NextResponse.json(
+        { success: false, message: '没有有效的运单 ID' },
+        { status: 400 }
+      )
+    }
+
+    // 分批删除，避免单次占位符过多
+    const batchSize = 500
+    let deleted = 0
+    for (let i = 0; i < safeIds.length; i += batchSize) {
+      const chunk = safeIds.slice(i, i + batchSize)
+      const result = await sql.query(
+        'DELETE FROM orders WHERE id = ANY($1) RETURNING id',
+        [chunk]
+      )
+      deleted += result.length
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: `成功删除 ${deleted} 条运单`,
+      data: { deleted, requested: safeIds.length },
+    })
+  } catch (err: any) {
+    console.error('orders DELETE error:', err)
+    return NextResponse.json(
+      { success: false, message: err.message || String(err) },
+      { status: 500 }
+    )
+  }
+}
